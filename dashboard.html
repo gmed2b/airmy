@@ -439,11 +439,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
         <div class="ai-voice-bar"></div>
       </div>
       <div class="ai-status-text">AI DIRECTOR EN ECOUTE — PRET A RECEVOIR VOS INSTRUCTIONS</div>
-      <div class="ai-input-wrap">
-        <input class="ai-input" id="aiInput" type="text" placeholder="Ex: Ajouter un incendie pour augmenter la difficulte..." onkeydown="if(event.key==='Enter')sendAICommand()">
+      <div style="text-align:center">
         <button class="ai-send" onclick="sendAICommand()">Envoyer</button>
       </div>
-      <div class="ai-response" id="aiResponse"></div>
     </div>
   </div>
 
@@ -761,30 +759,21 @@ function toggleAIPanel(){
 }
 
 function sendAICommand(){
-  const input=document.getElementById("aiInput");
-  const cmd=input.value.trim();
-  if(!cmd)return;
-  const resp=document.getElementById("aiResponse");
-  resp.classList.add("show");
-  resp.innerHTML="⏳ AI Director analyse la commande...";
-  input.value="";
+  toggleAIPanel();
 
-  setTimeout(()=>{
-    resp.innerHTML=`✅ <b>INSTRUCTION ACCEPTEE</b><br><br>→ Injection d'un incendie en secteur Charlie-7<br>→ Difficulte augmentee : <b style="color:var(--danger)">9.2/10</b><br>→ Visibilite reduite de 60%<br>→ Routes MSR-2 et MSR-3 bloquees<br><br><span style="color:var(--text3)">Les agents OPFOR s'adaptent au nouvel environnement...</span>`;
-    // Trigger fire effect on map
-    activateFire();
-    // Update difficulty in sidebar
-    const diffEl=document.querySelector(".param-value.warn");
-    if(diffEl){diffEl.textContent="9.2/10";diffEl.style.color="var(--danger)";diffEl.classList.remove("warn");diffEl.classList.add("danger")}
-    // Add log entry
-    const log=document.getElementById("eventLog");
-    const div=document.createElement("div");
-    div.className="log-entry";
-    const m=Math.floor(seconds/60).toString().padStart(2,"0");
-    const s=(seconds%60).toString().padStart(2,"0");
-    div.innerHTML=`<span class="log-time">${m}:${s}</span><span class="log-msg critical">🔥 AI Director: INCENDIE declenche secteur C7 — difficulte 9.2/10</span>`;
-    log.insertBefore(div,log.children[1]);
-  },1500);
+  // Trigger fire effect on map
+  activateFire();
+  // Update difficulty in sidebar
+  const diffEl=document.querySelector(".param-value.warn");
+  if(diffEl){diffEl.textContent="9.2/10";diffEl.style.color="var(--danger)";diffEl.classList.remove("warn");diffEl.classList.add("danger")}
+  // Add log entry
+  const log=document.getElementById("eventLog");
+  const div=document.createElement("div");
+  div.className="log-entry";
+  const m=Math.floor(seconds/60).toString().padStart(2,"0");
+  const s=(seconds%60).toString().padStart(2,"0");
+  div.innerHTML=`<span class="log-time">${m}:${s}</span><span class="log-msg critical">🔥 AI Director: INCENDIE declenche secteur C7 — difficulte 9.2/10</span>`;
+  log.insertBefore(div,log.children[1]);
 }
 
 // ===== FIRE EFFECT =====
