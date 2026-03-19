@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AITSP | Tactical Simulation Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0e14;--bg2:#0d1117;--bg3:#131920;--bg4:#1a2332;
+  --border:#1e2d3d;--border2:#2a3a4d;
+  --text:#c8d6e5;--text2:#8899aa;--text3:#556677;
+  --accent:#00d4ff;--accent2:#0099cc;--accent3:#006688;
+  --danger:#ff4757;--danger2:#cc2233;
+  --warn:#ffaa00;--warn2:#cc8800;
+  --success:#00e676;--success2:#00b35a;
+  --purple:#a855f7;
+  --glow:0 0 20px rgba(0,212,255,.15);
+  --font-mono:'JetBrains Mono',monospace;
+  --font-ui:'Outfit',sans-serif;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-ui)}
+
+/* GRID LAYOUT */
+.app{display:grid;grid-template-rows:48px 1fr 32px;grid-template-columns:280px 1fr 320px;height:100vh;gap:1px;background:var(--border)}
+.topbar{grid-column:1/-1;background:var(--bg2);display:flex;align-items:center;padding:0 16px;gap:16px}
+.sidebar-left{grid-row:2;background:var(--bg2);overflow-y:auto}
+.main-view{grid-row:2;background:var(--bg);position:relative;overflow:hidden}
+.sidebar-right{grid-row:2;background:var(--bg2);overflow-y:auto}
+.statusbar{grid-column:1/-1;background:var(--bg2);display:flex;align-items:center;padding:0 12px;font-size:11px;font-family:var(--font-mono);color:var(--text3);gap:20px}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* TOPBAR */
+.logo{font-weight:700;font-size:16px;letter-spacing:2px;color:var(--accent);font-family:var(--font-mono);display:flex;align-items:center;gap:8px}
+.logo svg{width:22px;height:22px}
+.logo span{opacity:.4;font-weight:300;color:var(--text2);font-size:11px;margin-left:4px}
+.sim-status{display:flex;align-items:center;gap:8px;margin-left:20px;font-size:12px;font-family:var(--font-mono)}
+.status-dot{width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse-dot 1.5s ease infinite;box-shadow:0 0 8px var(--success)}
+@keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:.4}}
+.sim-timer{font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--accent);letter-spacing:2px;margin-left:auto}
+.sim-timer span{color:var(--text3);font-size:11px;font-weight:400;margin-right:8px;letter-spacing:0}
+.topbar-actions{display:flex;gap:6px;margin-left:16px}
+.btn{padding:6px 14px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-size:11px;font-family:var(--font-mono);cursor:pointer;border-radius:4px;transition:all .2s;text-transform:uppercase;letter-spacing:1px}
+.btn:hover{border-color:var(--accent);color:var(--accent);box-shadow:var(--glow)}
+.btn-danger{border-color:var(--danger2);color:var(--danger)}
+.btn-danger:hover{background:rgba(255,71,87,.1);box-shadow:0 0 20px rgba(255,71,87,.15)}
+.btn-accent{border-color:var(--accent2);background:rgba(0,212,255,.08);color:var(--accent)}
+.btn-success{border-color:var(--success2);color:var(--success)}
+
+/* SECTION PANELS */
+.panel{padding:12px}
+.panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.panel-title{font-size:10px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:2px;color:var(--text3);font-weight:500}
+.panel-badge{font-size:9px;font-family:var(--font-mono);padding:2px 6px;border-radius:3px;background:rgba(0,212,255,.1);color:var(--accent);border:1px solid rgba(0,212,255,.2)}
+
+/* SCENARIO CONTROLS */
+.scenario-info{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px}
+.scenario-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:4px}
+.scenario-desc{font-size:10px;color:var(--text3);line-height:1.5;font-family:var(--font-mono)}
+.scenario-params{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.param{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:6px 8px}
+.param-label{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);font-family:var(--font-mono)}
+.param-value{font-size:14px;font-weight:600;color:var(--accent);font-family:var(--font-mono);margin-top:2px}
+.param-value.warn{color:var(--warn)}
+.param-value.danger{color:var(--danger)}
+.param-value.success{color:var(--success)}
+
+/* AGENT LIST */
+.agent-card{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:6px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.agent-card:hover{border-color:var(--accent3);background:var(--bg4)}
+.agent-card.active{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.agent-card.enemy{border-left:3px solid var(--danger)}
+.agent-card.ally{border-left:3px solid var(--accent)}
+.agent-card.neutral{border-left:3px solid var(--warn)}
+.agent-header{display:flex;align-items:center;gap:8px}
+.agent-icon{width:28px;height:28px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;font-family:var(--font-mono)}
+.agent-icon.ally-icon{background:rgba(0,212,255,.15);color:var(--accent)}
+.agent-icon.enemy-icon{background:rgba(255,71,87,.15);color:var(--danger)}
+.agent-icon.neutral-icon{background:rgba(255,170,0,.15);color:var(--warn)}
+.agent-name{font-size:11px;font-weight:600}
+.agent-role{font-size:9px;color:var(--text3);font-family:var(--font-mono)}
+.agent-stats{display:flex;gap:10px;margin-top:6px;font-size:9px;font-family:var(--font-mono);color:var(--text2)}
+.agent-stats .stat-val{color:var(--text);font-weight:500}
+.agent-health{height:2px;background:var(--bg);border-radius:1px;margin-top:4px;overflow:hidden}
+.agent-health-bar{height:100%;border-radius:1px;transition:width .5s}
+
+/* MAIN MAP */
+.map-container{width:100%;height:100%;position:relative;background:var(--bg)}
+.map-canvas{width:100%;height:100%;position:relative;z-index:1}
+.map-bg{position:absolute;inset:0;background:url('map.jpg') center/cover no-repeat;opacity:.55;z-index:0}
+.map-overlay{position:absolute;top:12px;left:12px;display:flex;gap:8px}
+.map-chip{background:rgba(10,14,20,.85);border:1px solid var(--border);border-radius:4px;padding:4px 10px;font-size:10px;font-family:var(--font-mono);color:var(--text2);backdrop-filter:blur(10px)}
+.map-chip b{color:var(--accent);margin-right:4px}
+.minimap{position:absolute;bottom:12px;left:12px;width:160px;height:120px;background:rgba(10,14,20,.9);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.compass{position:absolute;top:12px;right:12px;width:64px;height:64px}
+.event-log{position:absolute;bottom:12px;right:12px;width:300px;max-height:180px;background:rgba(10,14,20,.9);border:1px solid var(--border);border-radius:6px;padding:8px;overflow-y:auto;backdrop-filter:blur(10px)}
+.log-entry{font-size:9px;font-family:var(--font-mono);padding:3px 0;border-bottom:1px solid rgba(30,45,61,.5);display:flex;gap:6px;line-height:1.4}
+.log-time{color:var(--text3);min-width:50px}
+.log-msg{color:var(--text2)}
+.log-msg.critical{color:var(--danger)}
+.log-msg.warning{color:var(--warn)}
+.log-msg.info{color:var(--accent)}
+
+/* KPI CARDS */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}
+.kpi{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center}
+.kpi-value{font-size:22px;font-weight:700;font-family:var(--font-mono);line-height:1}
+.kpi-label{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:var(--text3);font-family:var(--font-mono);margin-top:4px}
+.kpi-trend{font-size:9px;margin-top:2px;font-family:var(--font-mono)}
+.kpi-trend.up{color:var(--success)}
+.kpi-trend.down{color:var(--danger)}
+
+/* CHARTS */
+.chart-container{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;margin-bottom:10px}
+.chart-title{font-size:9px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:1px;color:var(--text3);margin-bottom:8px}
+.sparkline{display:flex;align-items:flex-end;gap:2px;height:40px}
+.spark-bar{flex:1;background:var(--accent3);border-radius:1px 1px 0 0;transition:height .3s;min-width:3px;opacity:.7}
+.spark-bar:hover{opacity:1;background:var(--accent)}
+.bio-meter{margin-bottom:8px}
+.bio-label{display:flex;justify-content:space-between;font-size:9px;font-family:var(--font-mono);margin-bottom:3px}
+.bio-label span:first-child{color:var(--text3);text-transform:uppercase;letter-spacing:1px}
+.bio-label span:last-child{font-weight:600}
+.bio-track{height:4px;background:var(--bg);border-radius:2px;overflow:hidden}
+.bio-fill{height:100%;border-radius:2px;transition:width .5s}
+
+/* COGNITIVE LOAD GAUGE */
+.gauge-wrap{display:flex;align-items:center;justify-content:center;margin:12px 0;position:relative}
+.gauge-svg{width:140px;height:80px}
+.gauge-label{position:absolute;bottom:4px;text-align:center;font-family:var(--font-mono)}
+.gauge-value{font-size:24px;font-weight:700;color:var(--warn);display:block}
+.gauge-text{font-size:8px;text-transform:uppercase;letter-spacing:2px;color:var(--text3)}
+
+/* TIMELINE */
+.timeline{position:relative;padding-left:16px;margin-bottom:10px}
+.timeline::before{content:'';position:absolute;left:4px;top:0;bottom:0;width:1px;background:var(--border)}
+.tl-item{position:relative;padding:4px 0 8px 12px;font-size:10px;font-family:var(--font-mono)}
+.tl-item::before{content:'';position:absolute;left:-13px;top:7px;width:7px;height:7px;border-radius:50%;border:1.5px solid var(--accent);background:var(--bg2)}
+.tl-item.completed::before{background:var(--accent);border-color:var(--accent)}
+.tl-item.active::before{background:var(--warn);border-color:var(--warn);box-shadow:0 0 6px var(--warn)}
+.tl-item.pending::before{border-color:var(--text3)}
+.tl-time{color:var(--text3);font-size:8px}
+.tl-label{color:var(--text);margin-top:1px}
+
+/* THREAT MATRIX */
+.threat-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:10px}
+.threat-cell{aspect-ratio:1;border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:7px;font-family:var(--font-mono);font-weight:700;transition:all .3s}
+.t-none{background:rgba(0,230,118,.08);color:var(--success)}
+.t-low{background:rgba(0,212,255,.12);color:var(--accent)}
+.t-med{background:rgba(255,170,0,.15);color:var(--warn)}
+.t-high{background:rgba(255,71,87,.15);color:var(--danger)}
+.t-crit{background:rgba(255,71,87,.3);color:#ff6b7a;animation:threat-pulse 1s ease infinite}
+@keyframes threat-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* SOLDIER CAM */
+.soldier-cam-container{margin-bottom:4px}
+.soldier-cam-select{display:flex;gap:4px;margin-bottom:6px}
+.cam-tab{flex:1;padding:4px 6px;font-size:8px;font-family:var(--font-mono);text-transform:uppercase;letter-spacing:.5px;background:var(--bg);border:1px solid var(--border);color:var(--text3);cursor:pointer;border-radius:3px;transition:all .2s}
+.cam-tab:hover{border-color:var(--accent3);color:var(--text2)}
+.cam-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.06)}
+.soldier-cam{border-radius:6px;overflow:hidden;border:1px solid var(--border)}
+.cam-placeholder{position:relative;width:100%;aspect-ratio:16/9;background:linear-gradient(135deg,#0a1a12 0%,#0d1f18 30%,#111a14 60%,#0a1610 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;overflow:hidden}
+.cam-placeholder::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,80,.02) 2px,rgba(0,255,80,.02) 4px);pointer-events:none}
+.cam-placeholder::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 50%,rgba(0,0,0,.4) 100%);pointer-events:none}
+.cam-hud-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:6px 8px;font-size:8px;font-family:var(--font-mono);z-index:1}
+.cam-id{color:var(--text2);letter-spacing:1px}
+.cam-rec{color:var(--danger);animation:pulse-dot 1s ease infinite;letter-spacing:1px}
+.cam-center-icon{text-align:center;z-index:1;opacity:.6}
+.cam-label{font-size:8px;font-family:var(--font-mono);color:var(--text3);margin-top:6px;letter-spacing:1px;text-transform:uppercase}
+.cam-hud-bottom{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:space-between;padding:6px 8px;font-size:7px;font-family:var(--font-mono);color:var(--text3);background:linear-gradient(transparent,rgba(0,0,0,.6));z-index:1}
+
+/* ANIMATION */
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.panel{animation:fadeIn .4s ease both}
+.sidebar-left .panel:nth-child(2){animation-delay:.1s}
+.sidebar-right .panel:nth-child(2){animation-delay:.15s}
+.sidebar-right .panel:nth-child(3){animation-delay:.2s}
+
+/* SCAN LINE */
+.scan-line{position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:.15;animation:scan 4s linear infinite;pointer-events:none;z-index:10}
+@keyframes scan{0%{top:0}100%{top:100%}}
+
+/* GRID OVERLAY ON MAP */
+.grid-overlay{position:absolute;inset:0;background-image:
+  linear-gradient(rgba(0,212,255,.03) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(0,212,255,.03) 1px,transparent 1px);
+  background-size:40px 40px;pointer-events:none}
+
+.statusbar .sep{color:var(--border2)}
+.status-indicator{display:flex;align-items:center;gap:4px}
+.status-indicator::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--success)}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5"/><line x1="12" y1="22" x2="12" y2="15.5"/><line x1="22" y1="8.5" x2="12" y2="15.5"/><line x1="2" y1="8.5" x2="12" y2="15.5"/></svg>
+      AITSP <span>v2.4.1</span>
+    </div>
+    <div class="sim-status">
+      <div class="status-dot"></div>
+      <span style="color:var(--success);font-weight:500">SIMULATION ACTIVE</span>
+    </div>
+    <div class="sim-timer">
+      <span>MISSION TIME</span>
+      <span id="timer">00:14:37</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn btn-accent" onclick="togglePause()">⏸ PAUSE</button>
+      <button class="btn" onclick="accelerate()">⏩ x2</button>
+      <button class="btn btn-success">💾 SNAPSHOT</button>
+      <button class="btn btn-danger">⏹ END SIM</button>
+    </div>
+  </div>
+
+  <!-- LEFT SIDEBAR: Scenario + Agents -->
+  <div class="sidebar-left">
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Scenario Control</span>
+        <span class="panel-badge">PHASE 2/4</span>
+      </div>
+      <div class="scenario-info">
+        <div class="scenario-name">🏔 Op. GRANITE SHADOW</div>
+        <div class="scenario-desc">Embuscade en maquis montagneux - Zone Cortenais. Coordination inter-equipes sous brouillard de guerre. Communications degradees.</div>
+        <div class="scenario-params">
+          <div class="param"><div class="param-label">Difficulte</div><div class="param-value warn">7.8/10</div></div>
+          <div class="param"><div class="param-label">Fog of War</div><div class="param-value danger">ACTIF</div></div>
+          <div class="param"><div class="param-label">Meteo</div><div class="param-value">Couvert</div></div>
+          <div class="param"><div class="param-label">Comms</div><div class="param-value warn">-40%</div></div>
+        </div>
+      </div>
+      <!-- AI Director -->
+      <div class="scenario-info" style="border-color:var(--purple);border-left:3px solid var(--purple)">
+        <div class="scenario-name" style="color:var(--purple)">🧠 AI Scenario Director</div>
+        <div class="scenario-desc">Adaptation en cours : reduction visibilite secteur NE. Renforcement ennemi detecte sur axe Echo. Prochaine injection : IED sur route MSR-3.</div>
+        <div style="margin-top:6px;font-size:9px;font-family:var(--font-mono);color:var(--purple)">CURRICULUM LEVEL: 14 | ADAPTATION RATE: 0.87</div>
+      </div>
+      <!-- Phase Timeline -->
+      <div class="panel-header" style="margin-top:8px"><span class="panel-title">Mission Phases</span></div>
+      <div class="timeline">
+        <div class="tl-item completed"><div class="tl-time">00:00</div><div class="tl-label">Infiltration zone Alpha</div></div>
+        <div class="tl-item completed"><div class="tl-time">00:06</div><div class="tl-label">Prise de position sur crete</div></div>
+        <div class="tl-item active"><div class="tl-time">00:12</div><div class="tl-label">Reconnaissance axe Echo</div></div>
+        <div class="tl-item pending"><div class="tl-time">~00:20</div><div class="tl-label">Engagement objectif Bravo</div></div>
+        <div class="tl-item pending"><div class="tl-time">~00:30</div><div class="tl-label">Extraction point Zulu</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Agents Actifs</span>
+        <span class="panel-badge">12 UNITS</span>
+      </div>
+      <div id="agentList"></div>
+    </div>
+  </div>
+
+  <!-- MAIN VIEW: Tactical Map -->
+  <div class="main-view">
+    <div class="map-bg"></div>
+    <div class="scan-line"></div>
+    <div class="grid-overlay"></div>
+    <canvas class="map-canvas" id="mapCanvas"></canvas>
+    <div class="map-overlay">
+      <div class="map-chip"><b>SECTOR</b> Charlie-7</div>
+      <div class="map-chip"><b>ALT</b> 847m</div>
+      <div class="map-chip"><b>GRID</b> 42.15°N 9.09°E</div>
+      <div class="map-chip"><b>ZOOM</b> 1:5000</div>
+    </div>
+    <div class="compass">
+      <svg viewBox="0 0 64 64" id="compassSvg">
+        <circle cx="32" cy="32" r="30" fill="rgba(10,14,20,.8)" stroke="var(--border)" stroke-width="1"/>
+        <text x="32" y="14" text-anchor="middle" fill="var(--danger)" font-size="10" font-family="var(--font-mono)" font-weight="700">N</text>
+        <text x="54" y="36" text-anchor="middle" fill="var(--text3)" font-size="8" font-family="var(--font-mono)">E</text>
+        <text x="32" y="56" text-anchor="middle" fill="var(--text3)" font-size="8" font-family="var(--font-mono)">S</text>
+        <text x="10" y="36" text-anchor="middle" fill="var(--text3)" font-size="8" font-family="var(--font-mono)">W</text>
+        <line x1="32" y1="18" x2="32" y2="28" stroke="var(--danger)" stroke-width="2"/>
+      </svg>
+    </div>
+    <div class="minimap">
+      <canvas id="minimapCanvas" width="160" height="120"></canvas>
+    </div>
+    <div class="event-log" id="eventLog">
+      <div style="font-size:9px;font-family:var(--font-mono);color:var(--text3);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)">Event Log — Live</div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDEBAR: KPIs + Analytics -->
+  <div class="sidebar-right">
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Vue Temps Réel — Soldats</span>
+        <span class="panel-badge">LIVE FEED</span>
+      </div>
+      <div class="soldier-cam-container">
+        <div class="soldier-cam-select">
+          <button class="cam-tab active" onclick="switchCam(this,0)">α1 — Apprenant</button>
+          <button class="cam-tab" onclick="switchCam(this,1)">α3 — Sniper</button>
+          <button class="cam-tab" onclick="switchCam(this,2)">β1 — Appui</button>
+        </div>
+        <div class="soldier-cam">
+          <div class="cam-placeholder" id="soldierCamFeed">
+            <video id="soldierVideo" autoplay muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0">
+              <source src="soldier_feed.mp4" type="video/mp4">
+            </video>
+            <div class="cam-hud-top"><span class="cam-id">CAM: ALPHA-1</span><span class="cam-rec">● REC</span></div>
+            <div class="cam-hud-bottom">
+              <span>HR: <b style="color:var(--danger)">142</b> BPM</span>
+              <span>STRESS: <b style="color:var(--warn)">ÉLEVÉ</b></span>
+              <span>42.153°N 9.091°E</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">Performance KPIs</span>
+        <span class="panel-badge">REAL-TIME</span>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-value" style="color:var(--accent)" id="kpiDecisions">23</div><div class="kpi-label">Decisions</div><div class="kpi-trend up">▲ 2.3/min</div></div>
+        <div class="kpi"><div class="kpi-value" style="color:var(--success)" id="kpiAccuracy">78%</div><div class="kpi-label">Accuracy</div><div class="kpi-trend up">▲ +4%</div></div>
+        <div class="kpi"><div class="kpi-value" style="color:var(--warn)" id="kpiReaction">1.8s</div><div class="kpi-label">React. Time</div><div class="kpi-trend down">▼ +0.3s</div></div>
+        <div class="kpi"><div class="kpi-value" style="color:var(--purple)" id="kpiCoord">84</div><div class="kpi-label">Coord. Score</div><div class="kpi-trend up">▲ +7</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Cognitive Load Index</span></div>
+      <div class="gauge-wrap">
+        <svg class="gauge-svg" viewBox="0 0 140 80">
+          <defs>
+            <linearGradient id="gaugeGrad" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stop-color="var(--success)"/>
+              <stop offset="50%" stop-color="var(--warn)"/>
+              <stop offset="100%" stop-color="var(--danger)"/>
+            </linearGradient>
+          </defs>
+          <path d="M15,70 A55,55 0 0,1 125,70" fill="none" stroke="var(--bg)" stroke-width="10" stroke-linecap="round"/>
+          <path d="M15,70 A55,55 0 0,1 125,70" fill="none" stroke="url(#gaugeGrad)" stroke-width="10" stroke-linecap="round" stroke-dasharray="173" stroke-dashoffset="43" id="gaugeArc"/>
+          <circle cx="70" cy="70" r="3" fill="var(--warn)" id="gaugeNeedle"/>
+        </svg>
+        <div class="gauge-label">
+          <span class="gauge-value" id="gaugeVal">72%</span>
+          <span class="gauge-text">Cognitive Load</span>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Biometrics — Apprenant</span></div>
+      <div class="bio-meter"><div class="bio-label"><span>Heart Rate</span><span style="color:var(--danger)" id="bioHR">142 BPM</span></div><div class="bio-track"><div class="bio-fill" style="width:78%;background:linear-gradient(90deg,var(--warn),var(--danger))" id="bioHRBar"></div></div></div>
+      <div class="bio-meter"><div class="bio-label"><span>GSR (Stress)</span><span style="color:var(--warn)" id="bioGSR">6.2 μS</span></div><div class="bio-track"><div class="bio-fill" style="width:62%;background:linear-gradient(90deg,var(--accent),var(--warn))" id="bioGSRBar"></div></div></div>
+      <div class="bio-meter"><div class="bio-label"><span>Eye Focus</span><span style="color:var(--success)" id="bioEye">87%</span></div><div class="bio-track"><div class="bio-fill" style="width:87%;background:var(--success)" id="bioEyeBar"></div></div></div>
+      <div class="bio-meter"><div class="bio-label"><span>Resp. Rate</span><span style="color:var(--text)" id="bioResp">22 /min</span></div><div class="bio-track"><div class="bio-fill" style="width:55%;background:var(--accent)" id="bioRespBar"></div></div></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Decision Curve</span></div>
+      <div class="chart-container" style="border:none;padding:0;margin:0;background:transparent">
+        <canvas id="decisionChart" height="60"></canvas>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">Threat Matrix</span><span class="panel-badge">SECTOR C7</span></div>
+      <div class="threat-grid" id="threatGrid"></div>
+      <div style="display:flex;justify-content:space-between;font-size:8px;font-family:var(--font-mono);color:var(--text3);margin-top:4px">
+        <span>🟢 Clear</span><span>🔵 Low</span><span>🟡 Medium</span><span>🔴 High</span><span>⛔ Critical</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><span class="panel-title">AI vs Human — Decisions</span></div>
+      <div class="chart-container" style="border:none;padding:0;margin:0;background:transparent">
+        <div class="sparkline" id="aiVsHuman" style="height:50px"></div>
+        <div style="display:flex;justify-content:space-between;font-size:8px;font-family:var(--font-mono);color:var(--text3);margin-top:6px">
+          <span><span style="color:var(--accent)">■</span> Human</span>
+          <span><span style="color:var(--purple)">■</span> AI Optimal</span>
+          <span>Match: <b style="color:var(--success)">73%</b></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="statusbar">
+    <span class="status-indicator">SIM ENGINE ONLINE</span>
+    <span class="sep">|</span>
+    <span>MARL: MAPPO v3.2 — 12 agents</span>
+    <span class="sep">|</span>
+    <span>RENDER: UE5 @ 90fps</span>
+    <span class="sep">|</span>
+    <span>BIOMETRICS: STREAMING</span>
+    <span class="sep">|</span>
+    <span>LATENCY: 4.2ms</span>
+    <span class="sep">|</span>
+    <span>GPU: 67% | VRAM: 11.2/16GB</span>
+    <span style="margin-left:auto">AITSP v2.4.1 | CLOUD SOUVERAIN OVH</span>
+  </div>
+</div>
+
+<script>
+// ===== AGENTS =====
+const agents = [
+  {name:"Alpha-1 (Apprenant)",role:"Chef de Section",type:"ally",hp:100,icon:"α1"},
+  {name:"Alpha-2",role:"Grenadier-Voltigeur",type:"ally",hp:92,icon:"α2"},
+  {name:"Alpha-3",role:"Tireur Precision",type:"ally",hp:100,icon:"α3"},
+  {name:"Alpha-4",role:"Radio / Transmissions",type:"ally",hp:85,icon:"α4"},
+  {name:"Bravo-1",role:"Chef Equipe Appui",type:"ally",hp:97,icon:"β1"},
+  {name:"Bravo-2",role:"Mitrailleur",type:"ally",hp:78,icon:"β2"},
+  {name:"Bravo-3",role:"Aide-Mitrailleur",type:"ally",hp:100,icon:"β3"},
+  {name:"OPFOR-Cmdr",role:"RL Agent — MAPPO",type:"enemy",hp:100,icon:"E1"},
+  {name:"OPFOR-Sniper",role:"RL Agent — QMIX",type:"enemy",hp:100,icon:"E2"},
+  {name:"OPFOR-MG Team",role:"RL Agent — MAPPO",type:"enemy",hp:88,icon:"E3"},
+  {name:"CIV-Group A",role:"Population — Neutre",type:"neutral",hp:100,icon:"C1"},
+  {name:"CIV-Group B",role:"Journalistes",type:"neutral",hp:100,icon:"C2"},
+];
+function renderAgents(){
+  const el=document.getElementById("agentList");
+  el.innerHTML=agents.map((a,i)=>{
+    const hpColor=a.hp>80?'var(--success)':a.hp>50?'var(--warn)':'var(--danger)';
+    return`<div class="agent-card ${a.type} ${i===0?'active':''}" onclick="selectAgent(${i})">
+      <div class="agent-header">
+        <div class="agent-icon ${a.type}-icon">${a.icon}</div>
+        <div><div class="agent-name">${a.name}</div><div class="agent-role">${a.role}</div></div>
+      </div>
+      <div class="agent-stats"><span>HP: <span class="stat-val">${a.hp}%</span></span><span>POS: <span class="stat-val">${(42.15+Math.random()*.02).toFixed(3)}°N</span></span></div>
+      <div class="agent-health"><div class="agent-health-bar" style="width:${a.hp}%;background:${hpColor}"></div></div>
+    </div>`}).join("");
+}
+function selectAgent(i){document.querySelectorAll(".agent-card").forEach((c,j)=>c.classList.toggle("active",j===i))}
+renderAgents();
+
+// ===== THREAT MATRIX =====
+function renderThreatGrid(){
+  const el=document.getElementById("threatGrid");
+  const levels=["t-none","t-low","t-med","t-high","t-crit"];
+  const labels=["","L","M","H","!!"];
+  let html="";
+  for(let i=0;i<25;i++){
+    const w=[0,0,0,0,1,1,1,2,2,3][Math.floor(Math.random()*10)];
+    const idx=Math.min(w + (i>17?1:0),4);
+    html+=`<div class="threat-cell ${levels[idx]}">${labels[idx]}</div>`;
+  }
+  el.innerHTML=html;
+}
+renderThreatGrid();
+
+// ===== AI VS HUMAN SPARKLINE =====
+function renderAiVsHuman(){
+  const el=document.getElementById("aiVsHuman");
+  let html="";
+  for(let i=0;i<24;i++){
+    const h=20+Math.random()*30;
+    const ai=h*(0.7+Math.random()*0.5);
+    html+=`<div style="flex:1;display:flex;flex-direction:column;gap:1px;align-items:stretch;justify-content:flex-end;height:50px">
+      <div style="height:${ai}px;background:var(--purple);border-radius:1px;opacity:.5"></div>
+      <div style="height:${h}px;background:var(--accent);border-radius:1px;opacity:.7"></div>
+    </div>`;
+  }
+  el.innerHTML=html;
+}
+renderAiVsHuman();
+
+// ===== DECISION CHART =====
+function drawDecisionChart(){
+  const c=document.getElementById("decisionChart");
+  const ctx=c.getContext("2d");
+  c.width=c.offsetWidth*2;c.height=120;
+  ctx.scale(2,1);
+  const w=c.offsetWidth;
+  const pts=[];for(let i=0;i<30;i++)pts.push(30+Math.random()*50);
+  ctx.beginPath();ctx.moveTo(0,120);
+  for(let i=0;i<pts.length;i++){ctx.lineTo(i*(w/29),120-pts[i])}
+  ctx.lineTo(w,120);ctx.closePath();
+  const grad=ctx.createLinearGradient(0,0,0,120);
+  grad.addColorStop(0,"rgba(0,212,255,.2)");grad.addColorStop(1,"rgba(0,212,255,0)");
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();
+  for(let i=0;i<pts.length;i++){i===0?ctx.moveTo(0,120-pts[i]):ctx.lineTo(i*(w/29),120-pts[i])}
+  ctx.strokeStyle="var(--accent)";ctx.lineWidth=1.5;ctx.stroke();
+  // AI optimal line
+  ctx.beginPath();ctx.setLineDash([4,4]);
+  for(let i=0;i<pts.length;i++){const y=120-(pts[i]*1.15+5);i===0?ctx.moveTo(0,y):ctx.lineTo(i*(w/29),y)}
+  ctx.strokeStyle="var(--purple)";ctx.lineWidth=1;ctx.stroke();
+}
+setTimeout(drawDecisionChart,100);
+
+// ===== MAIN MAP CANVAS =====
+function drawMap(){
+  const c=document.getElementById("mapCanvas");
+  c.width=c.offsetWidth*2;c.height=c.offsetHeight*2;
+  const ctx=c.getContext("2d");
+  ctx.scale(2,2);
+  const w=c.offsetWidth,h=c.offsetHeight;
+  
+  // Terrain contours
+  ctx.strokeStyle="rgba(0,212,255,.06)";ctx.lineWidth=1;
+  for(let i=0;i<20;i++){
+    ctx.beginPath();
+    const yBase=h*.1+i*(h*.04);
+    ctx.moveTo(0,yBase);
+    for(let x=0;x<w;x+=10){ctx.lineTo(x,yBase+Math.sin(x*.01+i)*15+Math.sin(x*.003)*30)}
+    ctx.stroke();
+  }
+  // Terrain features
+  ctx.fillStyle="rgba(0,100,60,.15)";
+  for(let i=0;i<30;i++){const x=Math.random()*w,y=Math.random()*h,r=10+Math.random()*25;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill()}
+  // Roads / paths
+  ctx.strokeStyle="rgba(255,170,0,.12)";ctx.lineWidth=2;ctx.setLineDash([8,6]);
+  ctx.beginPath();ctx.moveTo(w*.1,h*.8);ctx.quadraticCurveTo(w*.4,h*.5,w*.8,h*.3);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(w*.3,h*.1);ctx.quadraticCurveTo(w*.5,h*.4,w*.6,h*.9);ctx.stroke();
+  ctx.setLineDash([]);
+  // Danger zones
+  ctx.fillStyle="rgba(255,71,87,.06)";ctx.beginPath();ctx.arc(w*.7,h*.35,80,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle="rgba(255,71,87,.15)";ctx.lineWidth=1;ctx.setLineDash([6,4]);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle="rgba(255,71,87,.04)";ctx.beginPath();ctx.arc(w*.45,h*.6,60,0,Math.PI*2);ctx.fill();
+  
+  // Allied units
+  const allies=[{x:w*.25,y:h*.55,l:"α1"},{x:w*.27,y:h*.58,l:"α2"},{x:w*.22,y:h*.52,l:"α3"},{x:w*.29,y:h*.56,l:"α4"},{x:w*.35,y:h*.45,l:"β1"},{x:w*.37,y:h*.48,l:"β2"},{x:w*.33,y:h*.43,l:"β3"}];
+  allies.forEach(a=>{
+    ctx.fillStyle="rgba(0,212,255,.15)";ctx.beginPath();ctx.arc(a.x,a.y,12,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="var(--accent)";ctx.beginPath();ctx.arc(a.x,a.y,4,0,Math.PI*2);ctx.fill();
+    ctx.font="bold 7px 'JetBrains Mono'";ctx.fillStyle="var(--accent)";ctx.textAlign="center";ctx.fillText(a.l,a.x,a.y-10);
+    // Direction line
+    ctx.strokeStyle="rgba(0,212,255,.3)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(a.x+8+Math.random()*10,a.y-6-Math.random()*8);ctx.stroke();
+  });
+  // Connection lines between squad
+  ctx.strokeStyle="rgba(0,212,255,.08)";ctx.lineWidth=1;
+  for(let i=1;i<allies.length;i++){ctx.beginPath();ctx.moveTo(allies[0].x,allies[0].y);ctx.lineTo(allies[i].x,allies[i].y);ctx.stroke()}
+  
+  // Enemy units (red, pulsing)
+  const enemies=[{x:w*.68,y:h*.32,l:"E1"},{x:w*.72,y:h*.28,l:"E2"},{x:w*.65,y:h*.38,l:"E3"}];
+  enemies.forEach(e=>{
+    ctx.fillStyle="rgba(255,71,87,.12)";ctx.beginPath();ctx.arc(e.x,e.y,14,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="var(--danger)";ctx.beginPath();ctx.arc(e.x,e.y,4,0,Math.PI*2);ctx.fill();
+    ctx.font="bold 7px 'JetBrains Mono'";ctx.fillStyle="var(--danger)";ctx.textAlign="center";ctx.fillText(e.l,e.x,e.y-10);
+    // Threat radius
+    ctx.strokeStyle="rgba(255,71,87,.08)";ctx.setLineDash([4,4]);ctx.beginPath();ctx.arc(e.x,e.y,35,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  });
+  // Neutrals
+  [{x:w*.5,y:h*.7,l:"C1"},{x:w*.55,y:h*.72,l:"C2"}].forEach(n=>{
+    ctx.fillStyle="rgba(255,170,0,.1)";ctx.beginPath();ctx.arc(n.x,n.y,10,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="var(--warn)";ctx.beginPath();ctx.arc(n.x,n.y,3,0,Math.PI*2);ctx.fill();
+    ctx.font="bold 6px 'JetBrains Mono'";ctx.fillStyle="var(--warn)";ctx.textAlign="center";ctx.fillText(n.l,n.x,n.y-8);
+  });
+  // Objective marker
+  ctx.strokeStyle="rgba(0,230,118,.4)";ctx.lineWidth=2;ctx.setLineDash([6,4]);ctx.beginPath();ctx.arc(w*.75,h*.5,20,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+  ctx.font="bold 8px 'JetBrains Mono'";ctx.fillStyle="var(--success)";ctx.textAlign="center";ctx.fillText("OBJ-B",w*.75,h*.5+3);
+  // Waypoints
+  ctx.strokeStyle="rgba(0,212,255,.2)";ctx.lineWidth=1;ctx.setLineDash([3,3]);
+  ctx.beginPath();ctx.moveTo(w*.25,h*.55);ctx.lineTo(w*.45,h*.45);ctx.lineTo(w*.6,h*.4);ctx.lineTo(w*.75,h*.5);ctx.stroke();ctx.setLineDash([]);
+  ["WP1","WP2","WP3"].forEach((wp,i)=>{
+    const px=[w*.45,w*.6,w*.75][i],py=[h*.45,h*.4,h*.5][i];
+    ctx.fillStyle="rgba(0,212,255,.15)";ctx.beginPath();ctx.arc(px,py,6,0,Math.PI*2);ctx.fill();
+    ctx.font="6px 'JetBrains Mono'";ctx.fillStyle="var(--accent)";ctx.fillText(wp,px,py-9);
+  });
+}
+setTimeout(drawMap,50);
+window.addEventListener("resize",()=>setTimeout(drawMap,100));
+
+// ===== MINIMAP =====
+function drawMinimap(){
+  const c=document.getElementById("minimapCanvas");const ctx=c.getContext("2d");
+  ctx.fillStyle="rgba(15,25,35,.9)";ctx.fillRect(0,0,160,120);
+  ctx.strokeStyle="rgba(0,212,255,.1)";
+  for(let i=0;i<8;i++){ctx.beginPath();ctx.moveTo(0,i*15);ctx.lineTo(160,i*15);ctx.stroke();ctx.beginPath();ctx.moveTo(i*20,0);ctx.lineTo(i*20,120);ctx.stroke()}
+  // Allied cluster
+  ctx.fillStyle="var(--accent)";[[40,66],[43,70],[38,63],[46,67],[56,54],[58,58],[53,52]].forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],2,0,Math.PI*2);ctx.fill()});
+  // Enemy
+  ctx.fillStyle="var(--danger)";[[109,38],[115,34],[104,46]].forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],2,0,Math.PI*2);ctx.fill()});
+  // View rect
+  ctx.strokeStyle="rgba(0,212,255,.4)";ctx.lineWidth=1;ctx.strokeRect(20,30,100,60);
+}
+drawMinimap();
+
+// ===== EVENT LOG =====
+const logMessages=[
+  {time:"14:37",msg:"Alpha-1 a pris position derriere rocher G-14",type:"info"},
+  {time:"14:35",msg:"OPFOR-Sniper detecte — secteur NE, 340m",type:"critical"},
+  {time:"14:33",msg:"Communications degradees — canal 2 perdu",type:"warning"},
+  {time:"14:31",msg:"AI Director: augmentation brouillard secteur NE",type:"info"},
+  {time:"14:28",msg:"Bravo-2 touche — HP 78% (tir de suppression)",type:"critical"},
+  {time:"14:25",msg:"Alpha-1 decision: contournement par le flanc ouest",type:"info"},
+  {time:"14:22",msg:"IED detecte sur MSR-3 — route bloquee",type:"warning"},
+  {time:"14:18",msg:"CIV-Group B (journalistes) entre dans la zone",type:"warning"},
+  {time:"14:15",msg:"Phase 2 demarree — Reconnaissance axe Echo",type:"info"},
+];
+function renderLog(){
+  const el=document.getElementById("eventLog");
+  logMessages.forEach(m=>{
+    el.innerHTML+=`<div class="log-entry"><span class="log-time">${m.time}</span><span class="log-msg ${m.type}">${m.msg}</span></div>`;
+  });
+}
+renderLog();
+
+// ===== SOLDIER CAM SWITCH =====
+const camData=[
+  {id:"ALPHA-1",label:"POV — Alpha-1 (Chef de Section)",hr:"142",stress:"ÉLEVÉ",stressColor:"var(--warn)",coord:"42.153°N 9.091°E"},
+  {id:"ALPHA-3",label:"POV — Alpha-3 (Tireur Précision)",hr:"98",stress:"MODÉRÉ",stressColor:"var(--accent)",coord:"42.151°N 9.088°E"},
+  {id:"BRAVO-1",label:"POV — Bravo-1 (Chef Appui)",hr:"126",stress:"ÉLEVÉ",stressColor:"var(--warn)",coord:"42.155°N 9.093°E"},
+];
+function switchCam(btn,idx){
+  document.querySelectorAll(".cam-tab").forEach(t=>t.classList.remove("active"));
+  btn.classList.add("active");
+  const d=camData[idx];
+  const feed=document.getElementById("soldierCamFeed");
+  feed.querySelector(".cam-id").textContent="CAM: "+d.id;
+  feed.querySelector(".cam-label").textContent=d.label;
+  feed.querySelector(".cam-hud-bottom").innerHTML=`<span>HR: <b style="color:var(--danger)">${d.hr}</b> BPM</span><span>STRESS: <b style="color:${d.stressColor}">${d.stress}</b></span><span>${d.coord}</span>`;
+}
+
+// ===== TIMER =====
+let seconds=877,paused=false,speed=1;
+function updateTimer(){
+  if(!paused)seconds+=speed;
+  const m=Math.floor(seconds/60).toString().padStart(2,"0");
+  const s=(seconds%60).toString().padStart(2,"0");
+  document.getElementById("timer").textContent=`00:${m}:${s}`;
+}
+setInterval(updateTimer,1000);
+function togglePause(){
+  paused=!paused;
+  document.querySelector(".btn-accent").textContent=paused?"▶ RESUME":"⏸ PAUSE";
+  document.querySelector(".status-dot").style.background=paused?"var(--warn)":"var(--success)";
+}
+function accelerate(){
+  speed=speed===1?2:speed===2?4:1;
+  document.querySelectorAll(".btn")[1].textContent=`⏩ x${speed}`;
+}
+
+// ===== LIVE UPDATES =====
+function liveUpdate(){
+  // KPIs
+  const d=parseInt(document.getElementById("kpiDecisions").textContent);
+  if(Math.random()>.7)document.getElementById("kpiDecisions").textContent=d+1;
+  document.getElementById("kpiAccuracy").textContent=Math.floor(74+Math.random()*10)+"%";
+  document.getElementById("kpiReaction").textContent=(1.4+Math.random()*.8).toFixed(1)+"s";
+  document.getElementById("kpiCoord").textContent=Math.floor(78+Math.random()*12);
+  // Biometrics
+  const hr=130+Math.floor(Math.random()*25);
+  document.getElementById("bioHR").textContent=hr+" BPM";
+  document.getElementById("bioHRBar").style.width=Math.min(hr/180*100,100)+"%";
+  const gsr=(4+Math.random()*4).toFixed(1);
+  document.getElementById("bioGSR").textContent=gsr+" μS";
+  document.getElementById("bioGSRBar").style.width=(gsr/10*100)+"%";
+  const eye=Math.floor(75+Math.random()*20);
+  document.getElementById("bioEye").textContent=eye+"%";
+  document.getElementById("bioEyeBar").style.width=eye+"%";
+  const resp=Math.floor(18+Math.random()*8);
+  document.getElementById("bioResp").textContent=resp+" /min";
+  document.getElementById("bioRespBar").style.width=(resp/40*100)+"%";
+  // Gauge
+  const cog=Math.floor(60+Math.random()*25);
+  document.getElementById("gaugeVal").textContent=cog+"%";
+  document.getElementById("gaugeVal").style.color=cog>80?"var(--danger)":cog>60?"var(--warn)":"var(--success)";
+  const offset=173-(cog/100*173);
+  document.getElementById("gaugeArc").setAttribute("stroke-dashoffset",offset);
+  // Threat
+  if(Math.random()>.8)renderThreatGrid();
+}
+setInterval(liveUpdate,2500);
+
+// ===== NEW LOG ENTRIES =====
+const newLogs=[
+  {msg:"Alpha-3 engage tir de couverture — secteur E",type:"info"},
+  {msg:"OPFOR-MG repositionnement detecte",type:"critical"},
+  {msg:"Stress eleve detecte — HR 152 BPM",type:"warning"},
+  {msg:"AI Director: insertion renfort ennemi flanc sud",type:"critical"},
+  {msg:"Alpha-1 decision: demande appui feu",type:"info"},
+  {msg:"Visibilite reduite < 200m secteur NE",type:"warning"},
+  {msg:"OPFOR-Cmdr change tactique — encerclement",type:"critical"},
+  {msg:"Score decision +3 : bon choix couverture",type:"info"},
+];
+let logIdx=0;
+setInterval(()=>{
+  if(paused)return;
+  const m=Math.floor(seconds/60).toString().padStart(2,"0");
+  const s=(seconds%60).toString().padStart(2,"0");
+  const entry=newLogs[logIdx%newLogs.length];
+  const log=document.getElementById("eventLog");
+  const div=document.createElement("div");
+  div.className="log-entry";
+  div.innerHTML=`<span class="log-time">${m}:${s}</span><span class="log-msg ${entry.type}">${entry.msg}</span>`;
+  log.insertBefore(div,log.children[1]);
+  logIdx++;
+  if(log.children.length>20)log.removeChild(log.lastChild);
+},4000);
+</script>
+</body>
+</html>
