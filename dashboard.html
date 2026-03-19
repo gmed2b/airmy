@@ -156,6 +156,44 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
 .t-crit{background:rgba(255,71,87,.3);color:#ff6b7a;animation:threat-pulse 1s ease infinite}
 @keyframes threat-pulse{0%,100%{opacity:1}50%{opacity:.5}}
 
+/* AI DIRECTOR BUTTON */
+.btn-ai{border-color:var(--purple);color:var(--purple);background:rgba(168,85,247,.08)}
+.btn-ai:hover{box-shadow:0 0 20px rgba(168,85,247,.2);border-color:var(--purple);color:var(--purple)}
+
+/* AI PANEL */
+.ai-panel{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.95);width:480px;background:var(--bg2);border:1px solid var(--purple);border-radius:10px;z-index:1000;opacity:0;pointer-events:none;transition:all .3s;box-shadow:0 0 60px rgba(168,85,247,.15)}
+.ai-panel.open{opacity:1;pointer-events:all;transform:translate(-50%,-50%) scale(1)}
+.ai-panel-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);font-family:var(--font-mono)}
+.ai-panel-header span{font-size:12px;font-weight:600;color:var(--purple);letter-spacing:2px;text-transform:uppercase}
+.ai-panel-close{background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;transition:color .2s}
+.ai-panel-close:hover{color:var(--danger)}
+.ai-panel-body{padding:18px}
+.ai-voice-indicator{display:flex;align-items:center;justify-content:center;gap:3px;height:40px;margin-bottom:14px}
+.ai-voice-bar{width:4px;border-radius:2px;background:var(--purple);animation:voiceBar 1s ease-in-out infinite}
+.ai-voice-bar:nth-child(1){animation-delay:0s;height:10px}
+.ai-voice-bar:nth-child(2){animation-delay:.1s;height:20px}
+.ai-voice-bar:nth-child(3){animation-delay:.2s;height:30px}
+.ai-voice-bar:nth-child(4){animation-delay:.3s;height:25px}
+.ai-voice-bar:nth-child(5){animation-delay:.15s;height:15px}
+.ai-voice-bar:nth-child(6){animation-delay:.25s;height:22px}
+.ai-voice-bar:nth-child(7){animation-delay:.05s;height:12px}
+@keyframes voiceBar{0%,100%{transform:scaleY(1)}50%{transform:scaleY(2.5)}}
+.ai-status-text{text-align:center;font-size:10px;font-family:var(--font-mono);color:var(--text3);margin-bottom:14px;letter-spacing:1px}
+.ai-input-wrap{display:flex;gap:8px}
+.ai-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px 14px;color:var(--text);font-size:12px;font-family:var(--font-mono);outline:none;transition:border-color .2s}
+.ai-input:focus{border-color:var(--purple)}
+.ai-input::placeholder{color:var(--text3)}
+.ai-send{padding:10px 20px;background:rgba(168,85,247,.15);border:1px solid var(--purple);border-radius:6px;color:var(--purple);font-size:11px;font-family:var(--font-mono);font-weight:600;cursor:pointer;text-transform:uppercase;letter-spacing:1px;transition:all .2s}
+.ai-send:hover{background:rgba(168,85,247,.25);box-shadow:0 0 15px rgba(168,85,247,.2)}
+.ai-panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:999;opacity:0;pointer-events:none;transition:opacity .3s}
+.ai-panel-overlay.open{opacity:1;pointer-events:all}
+.ai-response{margin-top:12px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:10px;font-family:var(--font-mono);color:var(--purple);line-height:1.6;display:none}
+.ai-response.show{display:block;animation:fadeIn .4s ease}
+
+/* FIRE OVERLAY */
+.fire-canvas{position:absolute;inset:0;z-index:5;pointer-events:none;opacity:0;transition:opacity 1s}
+.fire-canvas.active{opacity:1}
+
 /* SOLDIER CAM */
 .soldier-cam-container{margin-bottom:4px}
 .soldier-cam-select{display:flex;gap:4px;margin-bottom:6px}
@@ -212,6 +250,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
       <span id="timer">00:14:37</span>
     </div>
     <div class="topbar-actions">
+      <button class="btn btn-ai" onclick="toggleAIPanel()">🎙 AI DIRECTOR</button>
       <button class="btn btn-accent" onclick="togglePause()">⏸ PAUSE</button>
       <button class="btn" onclick="accelerate()">⏩ x2</button>
       <button class="btn btn-success">💾 SNAPSHOT</button>
@@ -267,6 +306,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
     <div class="scan-line"></div>
     <div class="grid-overlay"></div>
     <canvas class="map-canvas" id="mapCanvas"></canvas>
+    <canvas class="fire-canvas" id="fireCanvas"></canvas>
     <div class="map-overlay">
       <div class="map-chip"><b>SECTOR</b> Charlie-7</div>
       <div class="map-chip"><b>ALT</b> 847m</div>
@@ -382,6 +422,28 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);fon
           <span>Match: <b style="color:var(--success)">73%</b></span>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- AI PANEL OVERLAY -->
+  <div class="ai-panel-overlay" id="aiOverlay" onclick="toggleAIPanel()"></div>
+  <div class="ai-panel" id="aiPanel">
+    <div class="ai-panel-header">
+      <span>🧠 AI Scenario Director</span>
+      <button class="ai-panel-close" onclick="toggleAIPanel()">&times;</button>
+    </div>
+    <div class="ai-panel-body">
+      <div class="ai-voice-indicator">
+        <div class="ai-voice-bar"></div><div class="ai-voice-bar"></div><div class="ai-voice-bar"></div>
+        <div class="ai-voice-bar"></div><div class="ai-voice-bar"></div><div class="ai-voice-bar"></div>
+        <div class="ai-voice-bar"></div>
+      </div>
+      <div class="ai-status-text">AI DIRECTOR EN ECOUTE — PRET A RECEVOIR VOS INSTRUCTIONS</div>
+      <div class="ai-input-wrap">
+        <input class="ai-input" id="aiInput" type="text" placeholder="Ex: Ajouter un incendie pour augmenter la difficulte..." onkeydown="if(event.key==='Enter')sendAICommand()">
+        <button class="ai-send" onclick="sendAICommand()">Envoyer</button>
+      </div>
+      <div class="ai-response" id="aiResponse"></div>
     </div>
   </div>
 
@@ -689,6 +751,140 @@ setInterval(()=>{
   logIdx++;
   if(log.children.length>20)log.removeChild(log.lastChild);
 },4000);
+
+// ===== AI DIRECTOR PANEL =====
+function toggleAIPanel(){
+  document.getElementById("aiPanel").classList.toggle("open");
+  document.getElementById("aiOverlay").classList.toggle("open");
+  const input=document.getElementById("aiInput");
+  if(document.getElementById("aiPanel").classList.contains("open"))setTimeout(()=>input.focus(),300);
+}
+
+function sendAICommand(){
+  const input=document.getElementById("aiInput");
+  const cmd=input.value.trim();
+  if(!cmd)return;
+  const resp=document.getElementById("aiResponse");
+  resp.classList.add("show");
+  resp.innerHTML="⏳ AI Director analyse la commande...";
+  input.value="";
+
+  setTimeout(()=>{
+    resp.innerHTML=`✅ <b>INSTRUCTION ACCEPTEE</b><br><br>→ Injection d'un incendie en secteur Charlie-7<br>→ Difficulte augmentee : <b style="color:var(--danger)">9.2/10</b><br>→ Visibilite reduite de 60%<br>→ Routes MSR-2 et MSR-3 bloquees<br><br><span style="color:var(--text3)">Les agents OPFOR s'adaptent au nouvel environnement...</span>`;
+    // Trigger fire effect on map
+    activateFire();
+    // Update difficulty in sidebar
+    const diffEl=document.querySelector(".param-value.warn");
+    if(diffEl){diffEl.textContent="9.2/10";diffEl.style.color="var(--danger)";diffEl.classList.remove("warn");diffEl.classList.add("danger")}
+    // Add log entry
+    const log=document.getElementById("eventLog");
+    const div=document.createElement("div");
+    div.className="log-entry";
+    const m=Math.floor(seconds/60).toString().padStart(2,"0");
+    const s=(seconds%60).toString().padStart(2,"0");
+    div.innerHTML=`<span class="log-time">${m}:${s}</span><span class="log-msg critical">🔥 AI Director: INCENDIE declenche secteur C7 — difficulte 9.2/10</span>`;
+    log.insertBefore(div,log.children[1]);
+  },1500);
+}
+
+// ===== FIRE EFFECT =====
+let fireActive=false;
+let fireParticles=[];
+function activateFire(){
+  if(fireActive)return;
+  fireActive=true;
+  const fc=document.getElementById("fireCanvas");
+  fc.classList.add("active");
+  const mv=document.querySelector(".main-view");
+  fc.width=mv.offsetWidth*2;fc.height=mv.offsetHeight*2;
+  fc.style.width=mv.offsetWidth+"px";fc.style.height=mv.offsetHeight+"px";
+  const ctx=fc.getContext("2d");
+  ctx.scale(2,2);
+  const w=mv.offsetWidth,h=mv.offsetHeight;
+
+  // Create fire zones
+  const fireZones=[
+    {x:w*.55,y:h*.35,r:90},
+    {x:w*.45,y:h*.5,r:70},
+    {x:w*.62,y:h*.55,r:60},
+  ];
+
+  // Particle pool
+  function spawnParticle(zone){
+    const angle=Math.random()*Math.PI*2;
+    const dist=Math.random()*zone.r;
+    return{
+      x:zone.x+Math.cos(angle)*dist,
+      y:zone.y+Math.sin(angle)*dist,
+      vx:(Math.random()-.5)*1.2,
+      vy:-1-Math.random()*3,
+      life:1,
+      decay:.008+Math.random()*.015,
+      size:3+Math.random()*6,
+      zone:zone
+    };
+  }
+
+  for(let z of fireZones)for(let i=0;i<40;i++)fireParticles.push(spawnParticle(z));
+
+  function drawFire(){
+    if(!fireActive)return;
+    ctx.clearRect(0,0,w,h);
+
+    // Glow per zone
+    for(let z of fireZones){
+      const grd=ctx.createRadialGradient(z.x,z.y,0,z.x,z.y,z.r*1.5);
+      grd.addColorStop(0,"rgba(255,80,20,.12)");
+      grd.addColorStop(.5,"rgba(255,40,0,.06)");
+      grd.addColorStop(1,"transparent");
+      ctx.fillStyle=grd;
+      ctx.fillRect(z.x-z.r*2,z.y-z.r*2,z.r*4,z.r*4);
+    }
+
+    // Particles
+    for(let i=fireParticles.length-1;i>=0;i--){
+      const p=fireParticles[i];
+      p.x+=p.vx+(Math.random()-.5)*.5;
+      p.y+=p.vy;
+      p.vy*=.98;
+      p.life-=p.decay;
+      if(p.life<=0){fireParticles[i]=spawnParticle(p.zone);continue}
+
+      const alpha=p.life*.7;
+      const r=Math.floor(255);
+      const g=Math.floor(60+p.life*140);
+      const b=Math.floor(p.life*30);
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);
+      ctx.fillStyle=`rgba(${r},${g},${b},${alpha})`;
+      ctx.fill();
+
+      // Inner bright core
+      if(p.life>.5){
+        ctx.beginPath();
+        ctx.arc(p.x,p.y,p.size*p.life*.4,0,Math.PI*2);
+        ctx.fillStyle=`rgba(255,255,180,${alpha*.5})`;
+        ctx.fill();
+      }
+    }
+
+    // Smoke
+    for(let z of fireZones){
+      for(let s=0;s<3;s++){
+        const sx=z.x+(Math.random()-.5)*z.r;
+        const sy=z.y-z.r*.5-Math.random()*40;
+        const sr=10+Math.random()*25;
+        ctx.beginPath();
+        ctx.arc(sx,sy,sr,0,Math.PI*2);
+        ctx.fillStyle=`rgba(60,60,60,${.02+Math.random()*.03})`;
+        ctx.fill();
+      }
+    }
+
+    requestAnimationFrame(drawFire);
+  }
+  drawFire();
+}
 </script>
 </body>
 </html>
